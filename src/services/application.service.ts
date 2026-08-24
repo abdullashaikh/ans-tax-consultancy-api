@@ -35,8 +35,11 @@ export class ApplicationService {
   static async createApplication(params: {
     userId: number;
     serviceId: number;
-    title: string;
+    title?: string;
     description?: string;
+    notes?: string;
+    financialYear?: string;
+    assessmentYear?: string;
     priority?: ApplicationPriority;
     ipAddress?: string;
     userAgent?: string;
@@ -56,13 +59,21 @@ export class ApplicationService {
     const publicId = uuidv4();
     const appNumber = await this.generateAppNumber();
 
+    const finalTitle =
+      params.title?.trim() ||
+      (params.financialYear
+        ? `${service.name} (FY ${params.financialYear})`
+        : service.name);
+
+    const finalDescription = params.description || params.notes || null;
+
     const appId = await ApplicationRepository.create({
       publicId,
       applicationNumber: appNumber,
       clientId: client.id,
       serviceId: params.serviceId,
-      title: params.title,
-      description: params.description,
+      title: finalTitle,
+      description: finalDescription,
       priority: params.priority,
       quotedAmount: service.base_price ? parseFloat(service.base_price) : null,
       createdBy: params.userId,
@@ -174,5 +185,24 @@ export class ApplicationService {
     offset: number;
   }) {
     return ApplicationRepository.list(params);
+  }
+
+  static async trackByNumber(refNumber: string) {
+    const app = await ApplicationRepository.findByApplicationNumber(refNumber.trim().toUpperCase());
+    if (!app) {
+      throw ApiError.notFound('No application found with this reference number. Please check and try again.');
+    }
+    const history = await ApplicationRepository.getStatusHistory(app.id);
+    return {
+      referenceNumber: app.application_number,
+      title: app.title,
+      serviceName: app.service_name,
+      categoryName: app.category_name,
+      status: app.status,
+      priority: app.priority,
+      createdAt: app.created_at,
+      updatedAt: app.updated_at,
+      history,
+    };
   }
 }

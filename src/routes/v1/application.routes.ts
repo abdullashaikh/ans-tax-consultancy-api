@@ -14,6 +14,9 @@ import { noCacheMiddleware } from '../../middleware/security.middleware';
 
 const router = Router();
 
+// Public unauthenticated tracking endpoint with reference number
+router.get('/track/:refNumber', noCacheMiddleware, ApplicationController.trackByNumber);
+
 router.use(requireAuth, noCacheMiddleware);
 
 router.post('/', requirePermission(PermissionName.APPLICATION_CREATE), validateRequest(createApplicationSchema), ApplicationController.create);

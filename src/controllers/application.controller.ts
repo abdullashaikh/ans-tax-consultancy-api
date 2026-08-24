@@ -7,6 +7,16 @@ import { AuditService } from '../middleware/audit.middleware';
 import { RoleName } from '../constants/roles';
 
 export class ApplicationController {
+  static async trackByNumber(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refNumber = req.params['refNumber']!;
+      const trackingData = await ApplicationService.trackByNumber(refNumber);
+      ResponseFormatter.success(res, trackingData, 'Tracking information retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const ipAddress = AuditService.getClientIp(req);
@@ -16,7 +26,10 @@ export class ApplicationController {
         userId: req.user!.id,
         serviceId: req.body.serviceId,
         title: req.body.title,
-        description: req.body.description,
+        description: req.body.description || req.body.notes,
+        notes: req.body.notes,
+        financialYear: req.body.financialYear,
+        assessmentYear: req.body.assessmentYear,
         priority: req.body.priority,
         ipAddress,
         userAgent,

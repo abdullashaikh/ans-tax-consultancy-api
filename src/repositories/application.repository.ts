@@ -36,6 +36,28 @@ export class ApplicationRepository {
     return (rows[0] as any) || null;
   }
 
+  static async findByApplicationNumber(appNumber: string): Promise<(ApplicationRecord & {
+    client_name: string;
+    service_name: string;
+    service_slug: string;
+    category_name: string;
+  }) | null> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT a.id, a.public_id, a.application_number, a.title, a.status, a.priority, a.created_at, a.updated_at,
+              c.legal_name AS client_name,
+              s.name AS service_name, s.slug AS service_slug,
+              sc.name AS category_name
+       FROM applications a
+       INNER JOIN clients c ON c.id = a.client_id
+       INNER JOIN services s ON s.id = a.service_id
+       INNER JOIN service_categories sc ON sc.id = s.category_id
+       WHERE a.application_number = ?
+       LIMIT 1`,
+      [appNumber]
+    );
+    return (rows[0] as any) || null;
+  }
+
   static async create(params: {
     publicId: string;
     applicationNumber: string;

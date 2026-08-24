@@ -3,8 +3,11 @@ import { z } from 'zod';
 export const createApplicationSchema = {
   body: z.object({
     serviceId: z.number().int().positive('Service ID is required'),
-    title: z.string().min(1, 'Application title is required').max(255),
+    title: z.string().max(255).optional(),
     description: z.string().optional(),
+    notes: z.string().optional(),
+    financialYear: z.string().optional(),
+    assessmentYear: z.string().optional(),
     priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
   }),
 };

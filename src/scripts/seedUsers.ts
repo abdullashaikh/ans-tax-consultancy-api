@@ -15,7 +15,7 @@ async function seedAdminUsers() {
       password: 'Admin@ANS2026!',
       firstName: 'Abdulla',
       lastName: 'Shaikh',
-      phone: '+91-7046512939',
+      phone: '+91-7041512939',
       roleIds: [1, 2], // SUPER_ADMIN, ADMIN
     },
     {
