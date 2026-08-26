@@ -51,6 +51,10 @@ export class ApiError extends Error {
     return new ApiError(HttpStatus.TOO_MANY_REQUESTS, message, ErrorCodes.RATE_LIMIT_EXCEEDED);
   }
 
+  static serviceUnavailable(message: string = 'Service temporarily unavailable', code: ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR): ApiError {
+    return new ApiError(HttpStatus.SERVICE_UNAVAILABLE, message, code);
+  }
+
   static internal(message: string = 'An unexpected internal server error occurred'): ApiError {
     return new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, message, ErrorCodes.INTERNAL_SERVER_ERROR, undefined, false);
   }

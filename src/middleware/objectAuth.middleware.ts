@@ -16,20 +16,22 @@ export class ObjectAuth {
   /**
    * Validates access to an Application by public_id or internal id.
    */
-  static async checkApplicationAccess(req: Request, appPublicId: string): Promise<{ appId: number; clientId: number }> {
+  static async checkApplicationAccess(req: Request, appIdentifier: string): Promise<{ appId: number; clientId: number }> {
     const user = req.user;
     if (!user) {
       throw ApiError.unauthorized();
     }
+
+    const numericId = !isNaN(Number(appIdentifier)) ? Number(appIdentifier) : -1;
 
     // 1. Fetch application details with ownership and assignment
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT a.id, a.client_id, a.assigned_consultant_id, c.user_id AS client_user_id
        FROM applications a
        INNER JOIN clients c ON c.id = a.client_id
-       WHERE a.public_id = ?
+       WHERE a.public_id = ? OR a.id = ?
        LIMIT 1`,
-      [appPublicId]
+      [appIdentifier, numericId]
     );
 
     if (rows.length === 0) {
@@ -37,8 +39,12 @@ export class ObjectAuth {
     }
 
     const app = rows[0]!;
-    const isOwner = app['client_user_id'] === user.id;
-    const isAssignedConsultant = app['assigned_consultant_id'] === user.id;
+    const isOwner =
+      Number(app['client_user_id']) === Number(user.id) ||
+      (user.clientId && Number(app['client_id']) === Number(user.clientId));
+    const isAssignedConsultant =
+      app['assigned_consultant_id'] != null &&
+      Number(app['assigned_consultant_id']) === Number(user.id);
     const isSuperAdmin = user.roles.includes(RoleName.SUPER_ADMIN);
     const isAdmin = user.roles.includes(RoleName.ADMIN);
     const hasViewAllPerm = user.permissions?.includes(PermissionName.APPLICATION_VIEW);
@@ -57,13 +63,15 @@ export class ObjectAuth {
   }
 
   /**
-   * Validates access to a Document by public_id.
+   * Validates access to a Document by public_id or internal id.
    */
-  static async checkDocumentAccess(req: Request, docPublicId: string): Promise<{ docId: number; clientId: number; objectKey: string; storageProvider: string; mimeType: string; originalFileName: string }> {
+  static async checkDocumentAccess(req: Request, docIdentifier: string): Promise<{ docId: number; clientId: number; objectKey: string; storageProvider: string; mimeType: string; originalFileName: string }> {
     const user = req.user;
     if (!user) {
       throw ApiError.unauthorized();
     }
+
+    const numericId = !isNaN(Number(docIdentifier)) ? Number(docIdentifier) : -1;
 
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT d.id, d.client_id, d.application_id, d.storage_provider, d.storage_object_key,
@@ -72,9 +80,9 @@ export class ObjectAuth {
        FROM documents d
        INNER JOIN clients c ON c.id = d.client_id
        LEFT  JOIN applications a ON a.id = d.application_id
-       WHERE d.public_id = ? AND d.deleted_at IS NULL
+       WHERE (d.public_id = ? OR d.id = ?) AND d.deleted_at IS NULL
        LIMIT 1`,
-      [docPublicId]
+      [docIdentifier, numericId]
     );
 
     if (rows.length === 0) {
@@ -82,8 +90,12 @@ export class ObjectAuth {
     }
 
     const doc = rows[0]!;
-    const isOwner = doc['client_user_id'] === user.id;
-    const isAssignedConsultant = doc['assigned_consultant_id'] === user.id;
+    const isOwner =
+      Number(doc['client_user_id']) === Number(user.id) ||
+      (user.clientId && Number(doc['client_id']) === Number(user.clientId));
+    const isAssignedConsultant =
+      doc['assigned_consultant_id'] != null &&
+      Number(doc['assigned_consultant_id']) === Number(user.id);
     const isSuperAdmin = user.roles.includes(RoleName.SUPER_ADMIN);
     const isAdmin = user.roles.includes(RoleName.ADMIN);
     const hasDocViewPerm = user.permissions?.includes(PermissionName.DOCUMENT_VIEW);
@@ -107,17 +119,19 @@ export class ObjectAuth {
   }
 
   /**
-   * Validates access to a Client profile by public_id.
+   * Validates access to a Client profile by public_id or internal id.
    */
-  static async checkClientAccess(req: Request, clientPublicId: string): Promise<number> {
+  static async checkClientAccess(req: Request, clientIdentifier: string): Promise<number> {
     const user = req.user;
     if (!user) {
       throw ApiError.unauthorized();
     }
 
+    const numericId = !isNaN(Number(clientIdentifier)) ? Number(clientIdentifier) : -1;
+
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT id, user_id FROM clients WHERE public_id = ? AND deleted_at IS NULL LIMIT 1`,
-      [clientPublicId]
+      `SELECT id, user_id FROM clients WHERE (public_id = ? OR id = ?) AND deleted_at IS NULL LIMIT 1`,
+      [clientIdentifier, numericId]
     );
 
     if (rows.length === 0) {
@@ -125,7 +139,7 @@ export class ObjectAuth {
     }
 
     const client = rows[0]!;
-    const isOwner = client['user_id'] === user.id;
+    const isOwner = Number(client['user_id']) === Number(user.id);
     const isSuperAdmin = user.roles.includes(RoleName.SUPER_ADMIN);
     const isAdmin = user.roles.includes(RoleName.ADMIN);
     const hasClientViewPerm = user.permissions?.includes(PermissionName.CLIENT_VIEW);

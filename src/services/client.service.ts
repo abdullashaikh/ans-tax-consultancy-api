@@ -15,6 +15,35 @@ export class ClientService {
     return ClientRepository.list(params);
   }
 
+  static async getMyProfile(userId: number) {
+    const client = await ClientRepository.findByUserId(userId);
+    if (!client) {
+      throw ApiError.notFound('Client profile not found for current user', ErrorCodes.CLIENT_NOT_FOUND);
+    }
+    const addresses = await ClientRepository.getAddresses(client.id);
+    return { ...client, addresses };
+  }
+
+  static async updateMyProfile(
+    userId: number,
+    params: {
+      legalName?: string;
+      displayName?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      alternatePhone?: string | null;
+      businessType?: string | null;
+      gstin?: string | null;
+      panReference?: string | null;
+    }
+  ) {
+    const client = await ClientRepository.findByUserId(userId);
+    if (!client) {
+      throw ApiError.notFound('Client profile not found for current user', ErrorCodes.CLIENT_NOT_FOUND);
+    }
+    return this.updateClient(client.public_id, params, userId);
+  }
+
   static async getClientByPublicId(publicId: string) {
     const client = await ClientRepository.findByPublicId(publicId);
     if (!client) {

@@ -40,6 +40,41 @@ export class UserRepository {
     return (rows[0] as UserRecord & { password_hash: string }) || null;
   }
 
+  static async findByPhone(phone: string): Promise<(UserRecord & { password_hash: string }) | null> {
+    // Search both exact phone and normalized phone (strip spaces/dashes)
+    const normalizedDigits = phone.replace(/\D/g, '');
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, public_id, first_name, last_name, email, phone, password_hash, status,
+              email_verified_at, phone_verified_at, last_login_at, created_at, updated_at, deleted_at
+       FROM users
+       WHERE (phone = ? OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?)
+         AND deleted_at IS NULL
+       LIMIT 1`,
+      [phone, `%${normalizedDigits.slice(-10)}`]
+    );
+    return (rows[0] as UserRecord & { password_hash: string }) || null;
+  }
+
+  static async markEmailVerified(id: number): Promise<void> {
+    await pool.query(
+      `UPDATE users
+       SET email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()),
+           updated_at = UTC_TIMESTAMP()
+       WHERE id = ?`,
+      [id]
+    );
+  }
+
+  static async markPhoneVerified(id: number): Promise<void> {
+    await pool.query(
+      `UPDATE users
+       SET phone_verified_at = COALESCE(phone_verified_at, UTC_TIMESTAMP()),
+           updated_at = UTC_TIMESTAMP()
+       WHERE id = ?`,
+      [id]
+    );
+  }
+
   static async create(params: {
     publicId: string;
     firstName: string;
@@ -189,17 +224,26 @@ export class UserRepository {
     );
     const total = countRows[0]?.['total'] || 0;
 
-    // 2. Get paginated results
+    // 2. Get paginated results with roles
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT u.id, u.public_id, u.first_name, u.last_name, u.email, u.phone, u.status,
-              u.email_verified_at, u.last_login_at, u.created_at, u.updated_at
+              u.email_verified_at, u.last_login_at, u.created_at, u.updated_at,
+              COALESCE(GROUP_CONCAT(r.name), '') AS roles_csv
        FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id
+       LEFT JOIN roles r ON r.id = ur.role_id
        WHERE ${whereClause}
+       GROUP BY u.id
        ORDER BY u.created_at DESC
        LIMIT ? OFFSET ?`,
       [...values, params.limit, params.offset]
     );
 
-    return { users: rows as UserRecord[], total };
+    const users = rows.map((r: any) => ({
+      ...r,
+      roles: r.roles_csv ? r.roles_csv.split(',').filter(Boolean) : [],
+    }));
+
+    return { users: users as unknown as UserRecord[], total };
   }
 }

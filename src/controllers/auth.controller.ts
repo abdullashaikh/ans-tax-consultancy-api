@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { OtpService } from '../services/otp/otp.service';
 import { ResponseFormatter } from '../utils/apiResponse';
 import { getRefreshTokenCookieOptions, getClearCookieOptions } from '../config/security';
 import { AuditService } from '../middleware/audit.middleware';
@@ -92,8 +93,8 @@ export class AuthController {
     try {
       const ipAddress = AuditService.getClientIp(req);
       const userAgent = req.headers['user-agent'];
-      const message = await AuthService.forgotPassword(req.body.email, ipAddress, userAgent);
-      ResponseFormatter.success(res, null, message);
+      const result = await AuthService.forgotPassword(req.body.email, ipAddress, userAgent);
+      ResponseFormatter.success(res, result, result.message);
     } catch (error) {
       next(error);
     }
@@ -104,6 +105,8 @@ export class AuthController {
       const ipAddress = AuditService.getClientIp(req);
       const userAgent = req.headers['user-agent'];
       await AuthService.resetPassword({
+        challengeId: req.body.challengeId,
+        otp: req.body.otp,
         token: req.body.token,
         newPassword: req.body.newPassword,
         ipAddress,
@@ -119,6 +122,81 @@ export class AuthController {
     try {
       const user = await AuthService.getMe(req.user!.id);
       ResponseFormatter.success(res, user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async requestOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+
+      const result = await OtpService.requestOtp({
+        identifier: req.body.identifier,
+        channel: req.body.channel,
+        purpose: req.body.purpose || 'LOGIN',
+        ipAddress,
+        userAgent,
+      });
+
+      ResponseFormatter.success(res, result, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+
+      const result = await OtpService.verifyOtp({
+        challengeId: req.body.challengeId,
+        otp: req.body.otp,
+        ipAddress,
+        userAgent,
+      });
+
+      if (result.tokens && result.rawRefreshToken) {
+        res.cookie('refresh_token', result.rawRefreshToken, getRefreshTokenCookieOptions());
+
+        ResponseFormatter.success(
+          res,
+          {
+            user: result.user,
+            accessToken: result.tokens.accessToken,
+            expiresIn: result.tokens.expiresIn,
+            verified: true,
+          },
+          result.message
+        );
+      } else {
+        ResponseFormatter.success(
+          res,
+          {
+            verified: result.verified,
+          },
+          result.message
+        );
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resendOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+
+      const result = await OtpService.resendOtp({
+        challengeId: req.body.challengeId,
+        ipAddress,
+        userAgent,
+      });
+
+      ResponseFormatter.success(res, result, result.message);
     } catch (error) {
       next(error);
     }

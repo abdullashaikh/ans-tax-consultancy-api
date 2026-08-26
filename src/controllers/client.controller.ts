@@ -19,6 +19,24 @@ export class ClientController {
     }
   }
 
+  static async getMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const client = await ClientService.getMyProfile(req.user!.id);
+      ResponseFormatter.success(res, client);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const updated = await ClientService.updateMyProfile(req.user!.id, req.body);
+      ResponseFormatter.success(res, updated, 'Profile updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const client = await ClientService.getClientByPublicId(req.params['id']!);

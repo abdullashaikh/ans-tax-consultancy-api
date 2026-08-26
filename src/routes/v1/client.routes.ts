@@ -11,6 +11,11 @@ const router = Router();
 
 router.use(requireAuth, noCacheMiddleware);
 
+// Client self-service profile (no admin permission required for own profile)
+router.get('/profile', ClientController.getMyProfile);
+router.patch('/profile', validateRequest(updateClientSchema), ClientController.updateMyProfile);
+
+// Admin client management
 router.get('/', requirePermission(PermissionName.CLIENT_VIEW), ClientController.list);
 router.get('/:id', requirePermission(PermissionName.CLIENT_VIEW), ClientController.getById);
 router.patch('/:id', requirePermission(PermissionName.CLIENT_UPDATE), validateRequest(updateClientSchema), ClientController.update);

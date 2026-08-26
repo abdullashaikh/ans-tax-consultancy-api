@@ -7,9 +7,17 @@ import {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  otpRequestSchema,
+  otpVerifySchema,
+  otpResendSchema,
 } from '../../validators/auth.validator';
 import { requireAuth } from '../../middleware/auth.middleware';
-import { authRateLimiter } from '../../middleware/rateLimit.middleware';
+import {
+  authRateLimiter,
+  otpRequestRateLimiter,
+  otpVerifyRateLimiter,
+  otpResendRateLimiter,
+} from '../../middleware/rateLimit.middleware';
 import { noCacheMiddleware } from '../../middleware/security.middleware';
 
 const router = Router();
@@ -20,9 +28,15 @@ router.use(noCacheMiddleware);
 router.post('/register', authRateLimiter, validateRequest(registerSchema), AuthController.register);
 router.post('/login', authRateLimiter, validateRequest(loginSchema), AuthController.login);
 router.post('/refresh', authRateLimiter, validateRequest(refreshTokenSchema), AuthController.refresh);
+router.post('/refresh-token', authRateLimiter, validateRequest(refreshTokenSchema), AuthController.refresh);
 router.post('/logout', AuthController.logout);
 router.post('/forgot-password', authRateLimiter, validateRequest(forgotPasswordSchema), AuthController.forgotPassword);
 router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSchema), AuthController.resetPassword);
+
+// OTP Authentication Endpoints (Client Users)
+router.post('/otp/request', otpRequestRateLimiter, validateRequest(otpRequestSchema), AuthController.requestOtp);
+router.post('/otp/verify', otpVerifyRateLimiter, validateRequest(otpVerifySchema), AuthController.verifyOtp);
+router.post('/otp/resend', otpResendRateLimiter, validateRequest(otpResendSchema), AuthController.resendOtp);
 
 router.get('/me', requireAuth, AuthController.getMe);
 

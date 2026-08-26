@@ -64,10 +64,14 @@ const envSchema = z.object({
     .string()
     .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
 
-  // Storage
+  // Storage (AWS S3 / Cloud Storage)
   STORAGE_PROVIDER: z.string().default('S3'),
   STORAGE_BUCKET: z.string().default('ans-tax-private-documents'),
   STORAGE_REGION: z.string().default('ap-south-1'),
+  STORAGE_ACCESS_KEY: z.string().optional(),
+  STORAGE_SECRET_KEY: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
   SIGNED_URL_EXPIRY_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('900'),
 
   // Payment
@@ -75,6 +79,18 @@ const envSchema = z.object({
   PAYMENT_KEY_ID: z.string().optional(),
   PAYMENT_KEY_SECRET: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
+
+  // Email & Resend OTP Provider
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('"ANS Tax Consultancy" <onboarding@resend.dev>'),
+
+  // OTP Configuration & Security
+  OTP_EXPIRATION_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('300'),
+  OTP_MAX_ATTEMPTS: z.string().transform((val) => parseInt(val, 10)).default('5'),
+  OTP_RESEND_COOLDOWN_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('30'),
+  OTP_MAX_RESENDS: z.string().transform((val) => parseInt(val, 10)).default('3'),
+  OTP_REQUEST_RATE_LIMIT_WINDOW_MS: z.string().transform((val) => parseInt(val, 10)).default('900000'), // 15 mins
+  OTP_REQUEST_RATE_LIMIT_MAX: z.string().transform((val) => parseInt(val, 10)).default('3'),
 });
 
 const parseEnv = () => {

@@ -1,6 +1,9 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRepository } from '../repositories/user.repository';
 import { ClientRepository } from '../repositories/client.repository';
+import { OtpRepository } from '../repositories/otp.repository';
+import { OtpService } from './otp/otp.service';
 import { TokenUtil } from '../utils/tokens';
 import { PasswordUtil } from '../utils/password';
 import { ApiError } from '../utils/apiError';
@@ -8,7 +11,6 @@ import { ErrorCodes } from '../constants/errorCodes';
 import { AuthTokens, AuthenticatedUser } from '../types/auth';
 import { AuditService } from '../middleware/audit.middleware';
 import { withTransaction } from '../config/database';
-import { CryptoUtil } from '../utils/crypto';
 
 export class AuthService {
   /**
@@ -247,32 +249,54 @@ export class AuthService {
   }
 
   /**
-   * Initiates forgot password flow without revealing account existence.
+   * Initiates forgot password flow using secure OTP delivery via Resend.
    */
-  static async forgotPassword(email: string, ipAddress?: string, userAgent?: string): Promise<string> {
-    const user = await UserRepository.findByEmail(email);
+  static async forgotPassword(
+    email: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<{ challengeId?: string; destinationMasked?: string; message: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await UserRepository.findByEmail(normalizedEmail);
+
     if (user && user.status === 'ACTIVE') {
-      const resetToken = CryptoUtil.generateRandomToken(32);
-      const tokenHash = CryptoUtil.hashToken(resetToken);
+      const otpResult = await OtpService.requestOtp({
+        identifier: normalizedEmail,
+        channel: 'EMAIL',
+        purpose: 'PASSWORD_RESET',
+        ipAddress,
+        userAgent,
+      });
 
       await AuditService.log({
         userId: user.id,
         action: 'PASSWORD_RESET_REQUESTED',
         entityType: 'AUTH',
-        newValues: { tokenHashPrefix: tokenHash.substring(0, 8) },
+        newValues: { email: normalizedEmail, challengeId: otpResult.challengeId },
         ipAddress,
         userAgent,
       });
-      // In production, send email with reset link. For now return message.
+
+      return {
+        challengeId: otpResult.challengeId,
+        destinationMasked: otpResult.destinationMasked,
+        message: `Password reset verification code sent to ${otpResult.destinationMasked}`,
+      };
     }
-    return 'If the account exists, a password reset link has been sent.';
+
+    // Generic response to prevent account enumeration
+    return {
+      message: 'If an active account exists for this email, a verification code has been sent.',
+    };
   }
 
   /**
-   * Completes password reset.
+   * Completes password reset using verified OTP session and updates credentials.
    */
   static async resetPassword(params: {
-    token: string;
+    challengeId?: string;
+    otp?: string;
+    token?: string;
     newPassword: string;
     ipAddress?: string;
     userAgent?: string;
@@ -281,8 +305,87 @@ export class AuthService {
     if (!strength.isValid) {
       throw ApiError.badRequest(strength.message || 'Password does not meet complexity requirements');
     }
-    // Hash and update
-    // In production, token would be looked up in a password_resets table.
+
+    if (params.challengeId && params.otp) {
+      const challenge = await OtpRepository.findByPublicId(params.challengeId);
+      if (!challenge) {
+        throw ApiError.badRequest('Invalid or expired verification session. Please request a new code.');
+      }
+
+      if (challenge.status === 'VERIFIED') {
+        throw ApiError.badRequest('This verification code has already been used.');
+      }
+
+      if (challenge.status === 'BLOCKED' || challenge.status === 'CANCELLED' || challenge.status === 'EXPIRED') {
+        throw ApiError.badRequest('This verification session is no longer active. Please request a new code.');
+      }
+
+      const now = new Date();
+      if (now > new Date(challenge.expires_at)) {
+        await OtpRepository.markStatus(challenge.id, 'EXPIRED');
+        throw ApiError.badRequest('Verification code has expired. Please request a new code.');
+      }
+
+      // Verify code hash
+      const candidateHash = OtpService.hashCode(params.otp);
+      const storedHashPrefix = 'code_hash:';
+      const storedHash = challenge.provider_request_id?.startsWith(storedHashPrefix)
+        ? challenge.provider_request_id.slice(storedHashPrefix.length)
+        : challenge.provider_request_id || '';
+
+      let isValid = false;
+      if (storedHash && storedHash.length === candidateHash.length) {
+        try {
+          isValid = crypto.timingSafeEqual(
+            Buffer.from(candidateHash, 'hex'),
+            Buffer.from(storedHash, 'hex')
+          );
+        } catch {
+          isValid = false;
+        }
+      }
+
+      if (!isValid) {
+        const updatedAttempts = await OtpRepository.incrementAttempts(challenge.id);
+        const remainingAttempts = Math.max(0, challenge.max_attempts - updatedAttempts);
+        if (updatedAttempts >= challenge.max_attempts) {
+          await OtpRepository.markStatus(challenge.id, 'BLOCKED');
+          throw ApiError.badRequest('Maximum verification attempts exceeded. Please request a new code.');
+        }
+        throw ApiError.badRequest(`Invalid verification code. ${remainingAttempts} attempt(s) remaining.`);
+      }
+
+      // Mark challenge verified
+      await OtpRepository.markVerified(challenge.id);
+
+      // Identify user
+      const userId = challenge.user_id;
+      if (!userId) {
+        throw ApiError.badRequest('No valid user account linked to this reset session. Please request a new code.');
+      }
+
+      const userRecord = await UserRepository.findById(userId);
+      if (!userRecord || userRecord.status !== 'ACTIVE') {
+        throw ApiError.badRequest('User account is not active or has been suspended.');
+      }
+
+      // Hash and update password
+      const newHash = await PasswordUtil.hash(params.newPassword);
+      await UserRepository.updatePassword(userRecord.id, newHash);
+
+      // Audit log
+      await AuditService.log({
+        userId: userRecord.id,
+        action: 'PASSWORD_RESET_SUCCESS',
+        entityType: 'AUTH',
+        ipAddress: params.ipAddress,
+        userAgent: params.userAgent,
+      });
+
+      return;
+    }
+
+    throw ApiError.badRequest('Valid challenge ID and verification code are required.');
   }
 
   /**

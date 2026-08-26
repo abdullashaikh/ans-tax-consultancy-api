@@ -49,3 +49,48 @@ export const uploadRateLimiter = rateLimit({
     next(ApiError.tooManyRequests('Document upload rate limit reached. Please wait a few moments.'));
   },
 });
+
+export const otpRequestRateLimiter = rateLimit({
+  windowMs: env.OTP_REQUEST_RATE_LIMIT_WINDOW_MS,
+  max: env.OTP_REQUEST_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env['NODE_ENV'] === 'test',
+  handler: (_req, _res, next) => {
+    next(
+      ApiError.tooManyRequests(
+        'Too many OTP requests from this IP address. Please wait 15 minutes before requesting another code.'
+      )
+    );
+  },
+});
+
+export const otpVerifyRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env['NODE_ENV'] === 'test',
+  handler: (_req, _res, next) => {
+    next(
+      ApiError.tooManyRequests(
+        'Too many OTP verification attempts from this IP address. Please wait before trying again.'
+      )
+    );
+  },
+});
+
+export const otpResendRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env['NODE_ENV'] === 'test',
+  handler: (_req, _res, next) => {
+    next(
+      ApiError.tooManyRequests(
+        'Too many OTP resend requests from this IP address. Please wait before requesting another code.'
+      )
+    );
+  },
+});
