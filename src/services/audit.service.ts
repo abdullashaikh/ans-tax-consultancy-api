@@ -10,4 +10,8 @@ export class AuditQueryService {
   }) {
     return AuditRepository.list(params);
   }
+
+  static async getSuperAdminSummary() {
+    return AuditRepository.getSuperAdminSummary();
+  }
 }

@@ -24,4 +24,13 @@ export class AuditController {
       next(error);
     }
   }
+
+  static async getSuperAdminSummary(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const summary = await AuditQueryService.getSuperAdminSummary();
+      ResponseFormatter.success(res, summary);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

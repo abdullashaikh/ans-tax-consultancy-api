@@ -74,6 +74,73 @@ export class UserService {
     });
   }
 
+  static async createStaffUser(
+    params: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      password: string;
+      roles: RoleName[];
+      status?: UserStatus;
+    },
+    callerUser: { id: number; roles: RoleName[] },
+    ipAddress?: string,
+    userAgent?: string
+  ) {
+    if (!callerUser.roles.includes(RoleName.SUPER_ADMIN)) {
+      throw ApiError.forbidden('Only a Super Admin can create staff accounts.');
+    }
+
+    const existingEmail = await UserRepository.findByEmail(params.email);
+    if (existingEmail) {
+      throw ApiError.conflict('A user with this email address already exists.');
+    }
+
+    if (params.phone) {
+      const existingPhone = await UserRepository.findByPhone(params.phone);
+      if (existingPhone) {
+        throw ApiError.conflict('A user with this phone number already exists.');
+      }
+    }
+
+    const strength = PasswordUtil.validateStrength(params.password);
+    if (!strength.isValid) {
+      throw ApiError.badRequest(strength.message || 'Password does not meet complexity requirements');
+    }
+
+    const passwordHash = await PasswordUtil.hash(params.password);
+    const { v4: uuidv4 } = require('uuid');
+    const publicId = `usr-${uuidv4()}`;
+
+    const newUserId = await UserRepository.create({
+      publicId,
+      firstName: params.firstName,
+      lastName: params.lastName,
+      email: params.email,
+      phone: params.phone,
+      passwordHash,
+      status: params.status || 'ACTIVE',
+    });
+
+    const rolesToAssign = params.roles && params.roles.length > 0 ? params.roles : [RoleName.STAFF];
+    for (const role of rolesToAssign) {
+      await UserRepository.assignRole(newUserId, role, callerUser.id);
+    }
+
+    await AuditService.log({
+      userId: callerUser.id,
+      action: 'STAFF_USER_CREATED',
+      entityType: 'USER',
+      entityId: newUserId,
+      newValues: { email: params.email, roles: rolesToAssign, status: params.status || 'ACTIVE' },
+      ipAddress,
+      userAgent,
+    });
+
+    return this.getUserByPublicId(publicId);
+  }
+
   static async adminUpdateUser(
     targetPublicId: string,
     params: {
@@ -83,11 +150,32 @@ export class UserService {
       status?: UserStatus;
       roles?: RoleName[];
     },
-    adminUserId: number
+    callerUser: { id: number; roles: RoleName[] },
+    ipAddress?: string,
+    userAgent?: string
   ) {
     const user = await UserRepository.findByPublicId(targetPublicId);
     if (!user) {
       throw ApiError.notFound('User not found', ErrorCodes.USER_NOT_FOUND);
+    }
+
+    // Role modification guardrails
+    if (params.roles && params.roles.length > 0) {
+      const isCallerSuperAdmin = callerUser.roles.includes(RoleName.SUPER_ADMIN);
+      const isGrantingSuperAdmin = params.roles.includes(RoleName.SUPER_ADMIN);
+
+      if (isGrantingSuperAdmin && !isCallerSuperAdmin) {
+        throw ApiError.forbidden('Only a Super Admin can grant the Super Admin role.');
+      }
+
+      // Check if target currently has SUPER_ADMIN and caller is attempting to revoke it
+      const currentRoles = await UserRepository.getUserRoles(user.id);
+      const isTargetSuperAdmin = currentRoles.includes(RoleName.SUPER_ADMIN);
+      if (isTargetSuperAdmin && !isGrantingSuperAdmin && !isCallerSuperAdmin) {
+        throw ApiError.forbidden('Only a Super Admin can modify another Super Admin account.');
+      }
+
+      await UserRepository.syncUserRoles(user.id, params.roles, callerUser.id);
     }
 
     await UserRepository.update(user.id, {
@@ -97,18 +185,14 @@ export class UserService {
       status: params.status,
     });
 
-    if (params.roles && params.roles.length > 0) {
-      for (const role of params.roles) {
-        await UserRepository.assignRole(user.id, role, adminUserId);
-      }
-    }
-
     await AuditService.log({
-      userId: adminUserId,
+      userId: callerUser.id,
       action: 'ADMIN_UPDATED_USER',
       entityType: 'USER',
       entityId: user.id,
       newValues: params,
+      ipAddress,
+      userAgent,
     });
 
     return this.getUserByPublicId(targetPublicId);

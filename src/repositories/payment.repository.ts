@@ -31,29 +31,44 @@ export class PaymentRepository {
     return (rows[0] as PaymentRecord) || null;
   }
 
+  static async findByGatewayTransactionId(gatewayTransactionId: string): Promise<PaymentRecord | null> {
+    if (!pool || typeof pool.query !== 'function') return null;
+    try {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT * FROM payments WHERE gateway_transaction_id = ? OR payment_reference = ? LIMIT 1`,
+        [gatewayTransactionId, gatewayTransactionId]
+      );
+      return (rows[0] as PaymentRecord) || null;
+    } catch {
+      return null;
+    }
+  }
+
   static async create(params: {
     publicId: string;
     clientId: number;
-    applicationId: number;
+    applicationId?: number | null;
     paymentReference: string;
     amount: number;
     currency?: string;
     paymentGateway?: string | null;
+    gatewayTransactionId?: string | null;
     paymentMethod?: string | null;
   }): Promise<number> {
     const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO payments (
         public_id, client_id, application_id, payment_reference, amount, currency,
-        payment_gateway, payment_method, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED')`,
+        payment_gateway, gateway_transaction_id, payment_method, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED')`,
       [
         params.publicId,
         params.clientId,
-        params.applicationId,
+        params.applicationId || null,
         params.paymentReference,
         params.amount,
         params.currency || 'INR',
         params.paymentGateway || 'RAZORPAY',
+        params.gatewayTransactionId || null,
         params.paymentMethod || null,
       ]
     );
@@ -117,14 +132,44 @@ export class PaymentRepository {
     const total = countRows[0]?.['total'] || 0;
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT p.id, p.public_id, p.payment_reference, p.amount, p.currency,
-              p.payment_gateway, p.gateway_transaction_id, p.payment_method,
-              p.status, p.paid_at, p.created_at,
-              a.application_number, a.title AS application_title,
-              c.legal_name AS client_name, c.public_id AS client_public_id
+      `SELECT p.id,
+              p.public_id AS publicId,
+              p.public_id,
+              p.payment_reference AS paymentReference,
+              p.payment_reference,
+              p.payment_reference AS invoiceNumber,
+              p.amount,
+              p.currency,
+              p.payment_gateway AS paymentGateway,
+              p.payment_gateway,
+              p.gateway_transaction_id AS gatewayTransactionId,
+              p.gateway_transaction_id,
+              p.payment_method AS paymentMethod,
+              p.payment_method,
+              p.status,
+              p.paid_at AS paidAt,
+              p.paid_at,
+              p.created_at AS createdAt,
+              p.created_at,
+              a.application_number AS applicationNumber,
+              a.application_number,
+              a.title AS applicationTitle,
+              a.title AS application_title,
+              c.legal_name AS clientName,
+              c.legal_name AS client_name,
+              c.public_id AS clientPublicId,
+              c.public_id AS client_public_id,
+              c.email AS clientEmail,
+              c.email AS client_email,
+              c.phone AS clientPhone,
+              c.phone AS client_phone,
+              c.gstin AS clientGstin,
+              c.gstin AS client_gstin,
+              c.pan_reference AS clientPan,
+              c.pan_reference AS client_pan
        FROM payments p
-       INNER JOIN applications a ON a.id = p.application_id
-       INNER JOIN clients c ON c.id = p.client_id
+       LEFT JOIN applications a ON a.id = p.application_id
+       LEFT JOIN clients c ON c.id = p.client_id
        ${whereClause}
        ORDER BY p.created_at DESC
        LIMIT ? OFFSET ?`,

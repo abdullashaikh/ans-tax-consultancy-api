@@ -74,10 +74,12 @@ const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   SIGNED_URL_EXPIRY_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('900'),
 
-  // Payment
+  // Payment (Razorpay)
   PAYMENT_PROVIDER: z.string().default('RAZORPAY'),
   PAYMENT_KEY_ID: z.string().optional(),
   PAYMENT_KEY_SECRET: z.string().optional(),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 
   // Email & Resend OTP Provider

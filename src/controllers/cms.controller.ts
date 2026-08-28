@@ -2,8 +2,54 @@ import { Request, Response, NextFunction } from 'express';
 import { CmsService } from '../services/cms.service';
 import { ResponseFormatter } from '../utils/apiResponse';
 import { PaginationUtil } from '../utils/pagination';
+import { AuditService } from '../middleware/audit.middleware';
 
 export class CmsController {
+  // ==========================================================================
+  // WEBSITE CONTENT CMS
+  // ==========================================================================
+
+  static async getPublicContent(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sectionKey = req.query['section'] as string | undefined;
+      const content = await CmsService.getPublicContent(sectionKey);
+      ResponseFormatter.success(res, content);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAllContent(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const content = await CmsService.getAllContent();
+      ResponseFormatter.success(res, content);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateContentBatch(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+      const items = Array.isArray(req.body.items) ? req.body.items : [req.body];
+
+      const result = await CmsService.updateContentBatch(
+        items,
+        req.user?.id,
+        ipAddress,
+        userAgent
+      );
+      ResponseFormatter.success(res, result, 'Website content updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==========================================================================
+  // FAQS & BLOG POSTS
+  // ==========================================================================
+
   static async listFaqs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const serviceId = req.query['serviceId'] ? parseInt(req.query['serviceId'] as string, 10) : undefined;

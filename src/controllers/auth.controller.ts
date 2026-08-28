@@ -47,6 +47,7 @@ export class AuthController {
       ResponseFormatter.success(res, {
         user: result.user,
         accessToken: result.tokens.accessToken,
+        refreshToken: result.rawRefreshToken,
         expiresIn: result.tokens.expiresIn,
       }, 'Login successful');
     } catch (error) {
@@ -72,6 +73,7 @@ export class AuthController {
       ResponseFormatter.success(res, {
         user: result.user,
         accessToken: result.tokens.accessToken,
+        refreshToken: result.rawRefreshToken,
         expiresIn: result.tokens.expiresIn,
       }, 'Token refreshed successfully');
     } catch (error) {
@@ -166,6 +168,7 @@ export class AuthController {
           {
             user: result.user,
             accessToken: result.tokens.accessToken,
+            refreshToken: result.rawRefreshToken,
             expiresIn: result.tokens.expiresIn,
             verified: true,
           },

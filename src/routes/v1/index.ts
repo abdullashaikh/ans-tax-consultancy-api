@@ -25,6 +25,14 @@ router.use('/documents', documentRoutes);
 router.use('/leads', leadRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/payments', paymentRoutes);
+router.post('/create-order', (req, res, next) => {
+  req.url = '/create-order';
+  paymentRoutes(req, res, next);
+});
+router.post('/verify-payment', (req, res, next) => {
+  req.url = '/verify-payment';
+  paymentRoutes(req, res, next);
+});
 router.use('/messages', messageRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/cms', cmsRoutes);

@@ -73,6 +73,7 @@ export interface ServiceCategoryRecord {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  deleted_at?: Date | null;
 }
 
 export interface ServiceRecord {
@@ -80,15 +81,47 @@ export interface ServiceRecord {
   category_id: number;
   name: string;
   slug: string;
+  icon?: string | null;
   short_description: string | null;
   description: string | null;
+  features?: any | null;
   eligibility: string | null;
   documents_required_description: string | null;
   processing_time: string | null;
   base_price: string | null; // DECIMAL stored as string
+  discount_price?: string | null;
   currency: string;
   is_active: boolean;
+  is_featured?: boolean;
   display_order: number;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at?: Date | null;
+}
+
+export interface ServicePriceHistoryRecord {
+  id: number;
+  service_id: number;
+  previous_base_price: string | null;
+  new_base_price: string;
+  previous_discount_price: string | null;
+  new_discount_price: string | null;
+  currency: string;
+  changed_by: number | null;
+  reason: string | null;
+  created_at: Date;
+  changed_by_name?: string | null;
+}
+
+export interface WebsiteContentRecord {
+  id: number;
+  section_key: string;
+  content_key: string;
+  content_value: string | null;
+  content_type: 'TEXT' | 'HTML' | 'JSON' | 'IMAGE_URL' | 'BOOLEAN';
+  display_order: number;
+  is_published: boolean;
+  updated_by: number | null;
   created_at: Date;
   updated_at: Date;
 }

@@ -6,6 +6,62 @@ import { AuditService } from '../middleware/audit.middleware';
 import { RoleName } from '../constants/roles';
 
 export class PaymentController {
+  /**
+   * Creates a Razorpay payment order for frontend Standard Checkout.
+   */
+  static async createOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+      const userId = req.user?.id;
+
+      const order = await PaymentService.createOrder({
+        amount: Number(req.body.amount),
+        currency: req.body.currency,
+        applicationId: req.body.applicationId ? parseInt(req.body.applicationId, 10) : undefined,
+        userId,
+        receipt: req.body.receipt,
+        notes: req.body.notes,
+        ipAddress,
+        userAgent,
+      });
+
+      ResponseFormatter.created(res, order, 'Razorpay order created successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Verifies Razorpay payment signature after successful modal checkout.
+   */
+  static async verifyPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+      const userId = req.user?.id;
+
+      const result = await PaymentService.verifyPayment({
+        razorpay_order_id: req.body.razorpay_order_id,
+        order_id: req.body.order_id,
+        razorpay_payment_id: req.body.razorpay_payment_id,
+        payment_id: req.body.payment_id,
+        razorpay_signature: req.body.razorpay_signature,
+        signature: req.body.signature,
+        userId,
+        ipAddress,
+        userAgent,
+      });
+
+      ResponseFormatter.success(res, result, 'Payment verified successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Backward-compatible payment create handler.
+   */
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const ipAddress = AuditService.getClientIp(req);

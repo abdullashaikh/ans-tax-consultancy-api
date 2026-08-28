@@ -9,9 +9,21 @@ export const updateUserSchema = {
   }),
 };
 
+export const createStaffUserSchema = {
+  body: z.object({
+    firstName: z.string().min(1).max(100),
+    lastName: z.string().min(1).max(100),
+    email: z.string().email(),
+    phone: z.string().regex(/^[0-9+\-\s()]{7,20}$/).optional(),
+    password: z.string().min(8),
+    roles: z.array(z.nativeEnum(RoleName)).min(1),
+    status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).default('ACTIVE'),
+  }),
+};
+
 export const adminUpdateUserSchema = {
   params: z.object({
-    id: z.string().uuid('Invalid user UUID'),
+    id: z.string().min(1),
   }),
   body: z.object({
     firstName: z.string().min(1).max(100).optional(),

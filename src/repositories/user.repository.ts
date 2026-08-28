@@ -196,6 +196,13 @@ export class UserRepository {
     );
   }
 
+  static async syncUserRoles(userId: number, roleNames: RoleName[], assignedBy?: number): Promise<void> {
+    await pool.query(`DELETE FROM user_roles WHERE user_id = ?`, [userId]);
+    for (const role of roleNames) {
+      await this.assignRole(userId, role, assignedBy);
+    }
+  }
+
   static async list(params: {
     status?: string;
     search?: string;

@@ -53,9 +53,33 @@ export class UserController {
     }
   }
 
+  static async createStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+      const user = await UserService.createStaffUser(
+        req.body,
+        { id: req.user!.id, roles: req.user!.roles },
+        ipAddress,
+        userAgent
+      );
+      ResponseFormatter.created(res, user, 'Staff user created successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async adminUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const updated = await UserService.adminUpdateUser(req.params['id']!, req.body, req.user!.id);
+      const ipAddress = AuditService.getClientIp(req);
+      const userAgent = req.headers['user-agent'];
+      const updated = await UserService.adminUpdateUser(
+        req.params['id']!,
+        req.body,
+        { id: req.user!.id, roles: req.user!.roles },
+        ipAddress,
+        userAgent
+      );
       ResponseFormatter.success(res, updated, 'User updated successfully');
     } catch (error) {
       next(error);
