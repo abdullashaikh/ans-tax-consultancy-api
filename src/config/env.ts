@@ -84,7 +84,7 @@ const envSchema = z.object({
 
   // Email & Resend OTP Provider
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('"ANS Tax Consultancy" <onboarding@resend.dev>'),
+  EMAIL_FROM: z.string().default('noreply@anstaxconsultancy.com'),
 
   // OTP Configuration & Security
   OTP_EXPIRATION_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('300'),

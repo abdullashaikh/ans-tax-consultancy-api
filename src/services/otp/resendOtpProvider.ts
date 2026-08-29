@@ -126,7 +126,7 @@ export class ResendOtpProvider implements OtpProvider {
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const fromAddress = env.EMAIL_FROM || 'ANS Tax Consultancy <onboarding@resend.dev>';
+      const fromAddress = process.env.EMAIL_FROM || env.EMAIL_FROM || 'noreply@anstaxconsultancy.com';
       const subject = `${params.code} is your ANS Tax Consultancy verification code`;
       const html = this.generateEmailHtml(params.code, params.purpose);
 
