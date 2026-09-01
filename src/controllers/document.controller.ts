@@ -5,13 +5,35 @@ import { PaginationUtil } from '../utils/pagination';
 import { ObjectAuth } from '../middleware/objectAuth.middleware';
 import { AuditService } from '../middleware/audit.middleware';
 import { ApiError } from '../utils/apiError';
+import { RoleName } from '../constants/roles';
+import { ClientRepository } from '../repositories/client.repository';
 
 export class DocumentController {
   static async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { page, limit, offset, search } = PaginationUtil.parseQuery(req.query);
       const status = req.query['status'] as string | undefined;
-      const clientId = req.query['clientId'] ? parseInt(req.query['clientId'] as string, 10) : undefined;
+      const user = req.user!;
+
+      // Scope to authenticated client's own documents
+      let clientId: number | undefined;
+      const isClient = user.roles.includes(RoleName.CLIENT) || !user.roles.some(r => [RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.CONSULTANT, RoleName.STAFF].includes(r));
+
+      if (isClient) {
+        clientId = user.clientId;
+        if (!clientId) {
+          const clientRecord = await ClientRepository.findByUserId(user.id);
+          clientId = clientRecord?.id;
+        }
+        if (!clientId) {
+          // Client has no profile or documents yet; safely return empty list
+          const meta = PaginationUtil.buildMeta(page, limit, 0);
+          ResponseFormatter.success(res, [], undefined, 200, meta);
+          return;
+        }
+      } else {
+        clientId = req.query['clientId'] ? parseInt(req.query['clientId'] as string, 10) : undefined;
+      }
 
       const { documents, total } = await DocumentService.listDocuments({
         status,

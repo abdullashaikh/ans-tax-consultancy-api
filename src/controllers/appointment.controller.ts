@@ -3,6 +3,7 @@ import { AppointmentService } from '../services/appointment.service';
 import { ResponseFormatter } from '../utils/apiResponse';
 import { PaginationUtil } from '../utils/pagination';
 import { RoleName } from '../constants/roles';
+import { ClientRepository } from '../repositories/client.repository';
 
 export class AppointmentController {
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -38,8 +39,20 @@ export class AppointmentController {
       let clientId: number | undefined;
       let consultantId: number | undefined;
 
-      if (user.roles.includes(RoleName.CLIENT)) {
+      const isClient = user.roles.includes(RoleName.CLIENT) || !user.roles.some(r => [RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.CONSULTANT, RoleName.STAFF].includes(r));
+
+      if (isClient) {
         clientId = user.clientId;
+        if (!clientId) {
+          const clientRecord = await ClientRepository.findByUserId(user.id);
+          clientId = clientRecord?.id;
+        }
+        if (!clientId) {
+          // Client has no profile or appointments yet; safely return empty list
+          const meta = PaginationUtil.buildMeta(page, limit, 0);
+          ResponseFormatter.success(res, [], undefined, 200, meta);
+          return;
+        }
       } else if (user.roles.includes(RoleName.CONSULTANT) && !user.roles.includes(RoleName.ADMIN) && !user.roles.includes(RoleName.SUPER_ADMIN)) {
         consultantId = user.id;
       }

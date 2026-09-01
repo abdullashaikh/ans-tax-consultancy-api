@@ -100,6 +100,8 @@ export class AuthService {
       email: params.email.toLowerCase(),
       roles,
       permissions,
+      clientId,
+      clientPublicId,
     });
 
     // 7. Audit log
@@ -176,6 +178,8 @@ export class AuthService {
       email: userRecord.email,
       roles,
       permissions,
+      clientId: clientRecord?.id,
+      clientPublicId: clientRecord?.public_id,
     });
 
     // Update last login
@@ -231,6 +235,8 @@ export class AuthService {
       email: userRecord.email,
       roles,
       permissions,
+      clientId: clientRecord?.id,
+      clientPublicId: clientRecord?.public_id,
     });
 
     const user: AuthenticatedUser = {

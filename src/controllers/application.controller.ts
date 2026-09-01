@@ -5,6 +5,7 @@ import { PaginationUtil } from '../utils/pagination';
 import { ObjectAuth } from '../middleware/objectAuth.middleware';
 import { AuditService } from '../middleware/audit.middleware';
 import { RoleName } from '../constants/roles';
+import { ClientRepository } from '../repositories/client.repository';
 
 export class ApplicationController {
   static async trackByNumber(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -105,10 +106,24 @@ export class ApplicationController {
       let clientId: number | undefined;
       let consultantId: number | undefined;
 
-      if (user.roles.includes(RoleName.CLIENT)) {
+      const isClient = user.roles.includes(RoleName.CLIENT) || !user.roles.some(r => [RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.CONSULTANT, RoleName.STAFF].includes(r));
+
+      if (isClient) {
         clientId = user.clientId;
+        if (!clientId) {
+          const clientRecord = await ClientRepository.findByUserId(user.id);
+          clientId = clientRecord?.id;
+        }
+        if (!clientId) {
+          // If client has no profile in the system, return empty applications list
+          const meta = PaginationUtil.buildMeta(page, limit, 0);
+          ResponseFormatter.success(res, [], undefined, 200, meta);
+          return;
+        }
       } else if (user.roles.includes(RoleName.CONSULTANT) && !user.roles.includes(RoleName.ADMIN) && !user.roles.includes(RoleName.SUPER_ADMIN)) {
         consultantId = user.id;
+      } else if (req.query['clientId']) {
+        clientId = parseInt(req.query['clientId'] as string, 10);
       }
 
       const { applications, total } = await ApplicationService.listApplications({

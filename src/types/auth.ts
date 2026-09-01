@@ -19,6 +19,8 @@ export interface AccessTokenPayload {
   email: string;
   roles: RoleName[];
   permissions: PermissionName[];
+  clientId?: number;
+  clientPublicId?: string;
   type: 'access';
   iat?: number;
   exp?: number;

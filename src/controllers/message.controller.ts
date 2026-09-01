@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { MessageService } from '../services/message.service';
 import { ResponseFormatter } from '../utils/apiResponse';
 import { PaginationUtil } from '../utils/pagination';
+import { ClientRepository } from '../repositories/client.repository';
 
 export class MessageController {
   static async createConversation(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -44,11 +45,16 @@ export class MessageController {
 
   static async listConversations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      if (!req.user!.clientId) {
+      let clientId = req.user!.clientId;
+      if (!clientId) {
+        const clientRecord = await ClientRepository.findByUserId(req.user!.id);
+        clientId = clientRecord?.id;
+      }
+      if (!clientId) {
         ResponseFormatter.success(res, []);
         return;
       }
-      const conversations = await MessageService.listConversationsByClient(req.user!.clientId);
+      const conversations = await MessageService.listConversationsByClient(clientId);
       ResponseFormatter.success(res, conversations);
     } catch (error) {
       next(error);

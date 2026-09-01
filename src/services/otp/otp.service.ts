@@ -454,6 +454,8 @@ export class OtpService {
         email: userRecord.email,
         roles,
         permissions,
+        clientId: clientRecord?.id,
+        clientPublicId: clientRecord?.public_id,
       });
 
       await AuditService.log({

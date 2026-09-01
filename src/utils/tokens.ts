@@ -18,6 +18,8 @@ export class TokenUtil {
     email: string;
     roles: RoleName[];
     permissions: PermissionName[];
+    clientId?: number;
+    clientPublicId?: string;
   }): { tokens: AuthTokens; rawRefreshToken: string; refreshTokenHash: string; tokenId: string } {
     const tokenId = uuidv4();
 
@@ -28,6 +30,8 @@ export class TokenUtil {
       email: params.email,
       roles: params.roles,
       permissions: params.permissions,
+      clientId: params.clientId,
+      clientPublicId: params.clientPublicId,
       type: 'access',
     };
 

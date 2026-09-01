@@ -4,8 +4,10 @@ import { TokenUtil } from '../utils/tokens';
 import { ApiError } from '../utils/apiError';
 import { ErrorCodes } from '../constants/errorCodes';
 import { AuthenticatedUser } from '../types/auth';
+import { RoleName } from '../constants/roles';
+import { ClientRepository } from '../repositories/client.repository';
 
-export const requireAuth = (req: Request, _res: Response, next: NextFunction): void => {
+export const requireAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     let token: string | undefined;
 
@@ -36,7 +38,19 @@ export const requireAuth = (req: Request, _res: Response, next: NextFunction): v
       lastName: '',
       roles: payload.roles,
       permissions: payload.permissions,
+      clientId: payload.clientId,
+      clientPublicId: payload.clientPublicId,
     };
+
+    // 5. If clientId was not in token, resolve from DB for clients
+    const isClientRole = user.roles.includes(RoleName.CLIENT) || !user.roles.some(r => [RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.CONSULTANT, RoleName.STAFF].includes(r));
+    if (!user.clientId && isClientRole) {
+      const clientRecord = await ClientRepository.findByUserId(user.id);
+      if (clientRecord) {
+        user.clientId = clientRecord.id;
+        user.clientPublicId = clientRecord.public_id;
+      }
+    }
 
     req.user = user;
     next();
@@ -45,7 +59,7 @@ export const requireAuth = (req: Request, _res: Response, next: NextFunction): v
   }
 };
 
-export const optionalAuth = (req: Request, _res: Response, next: NextFunction): void => {
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     let token: string | undefined;
     const authHeader = req.headers.authorization;
@@ -57,7 +71,7 @@ export const optionalAuth = (req: Request, _res: Response, next: NextFunction): 
 
     if (token) {
       const payload = TokenUtil.verifyAccessToken(token);
-      req.user = {
+      const user: AuthenticatedUser = {
         id: payload.userId,
         publicId: payload.sub,
         email: payload.email,
@@ -65,7 +79,21 @@ export const optionalAuth = (req: Request, _res: Response, next: NextFunction): 
         lastName: '',
         roles: payload.roles,
         permissions: payload.permissions,
+        clientId: payload.clientId,
+        clientPublicId: payload.clientPublicId,
       };
+
+      // Resolve clientId for client users if missing from token
+      const isClientRole = user.roles.includes(RoleName.CLIENT) || !user.roles.some(r => [RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.CONSULTANT, RoleName.STAFF].includes(r));
+      if (!user.clientId && isClientRole) {
+        const clientRecord = await ClientRepository.findByUserId(user.id);
+        if (clientRecord) {
+          user.clientId = clientRecord.id;
+          user.clientPublicId = clientRecord.public_id;
+        }
+      }
+
+      req.user = user;
     }
     next();
   } catch {
