@@ -12,22 +12,42 @@ export class LeadService {
     email?: string;
     phone?: string;
     serviceId?: number;
+    serviceInterest?: string;
     businessType?: string;
     city?: string;
+    state?: string;
+    annualTurnover?: string;
     message?: string;
     source?: string;
     ipAddress?: string;
     userAgent?: string;
   }) {
     const publicId = uuidv4();
+
+    // Construct unified business / interest and message metadata if provided
+    let combinedBusinessType = params.businessType || '';
+    if (params.serviceInterest && !combinedBusinessType.includes(params.serviceInterest)) {
+      combinedBusinessType = combinedBusinessType
+        ? `${combinedBusinessType} | Interest: ${params.serviceInterest}`
+        : `Interest: ${params.serviceInterest}`;
+    }
+    if (params.annualTurnover) {
+      combinedBusinessType = `${combinedBusinessType} | Turnover: ${params.annualTurnover}`;
+    }
+
+    let combinedCity = params.city || '';
+    if (params.state) {
+      combinedCity = combinedCity ? `${combinedCity}, ${params.state}` : params.state;
+    }
+
     const leadId = await LeadRepository.create({
       publicId,
       name: params.name,
       email: params.email,
       phone: params.phone,
       serviceId: params.serviceId,
-      businessType: params.businessType,
-      city: params.city,
+      businessType: combinedBusinessType || null,
+      city: combinedCity || null,
       message: params.message,
       source: params.source,
     });

@@ -63,10 +63,14 @@ export interface ClientRecord {
   deleted_at: Date | null;
 }
 
+export type ServiceRegion = 'INDIA' | 'UAE';
+export type CategoryRegion = 'INDIA' | 'UAE' | 'GLOBAL';
+
 export interface ServiceCategoryRecord {
   id: number;
   name: string;
   slug: string;
+  region?: CategoryRegion;
   description: string | null;
   icon: string | null;
   display_order: number;
@@ -74,29 +78,147 @@ export interface ServiceCategoryRecord {
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date | null;
+  service_count?: number;
 }
 
 export interface ServiceRecord {
   id: number;
+  som_number?: number | null;
   category_id: number;
   name: string;
   slug: string;
+  region?: ServiceRegion;
   icon?: string | null;
   short_description: string | null;
   description: string | null;
   features?: any | null;
-  eligibility: string | null;
-  documents_required_description: string | null;
-  processing_time: string | null;
-  base_price: string | null; // DECIMAL stored as string
+  overview?: string | null;
+  eligibility?: string | null;
+  documents_required_description?: string | null;
+  required_documents?: string[] | any | null;
+  deliverables?: string[] | any | null;
+  process_steps?: Array<{ step?: number; title: string; description: string }> | any | null;
+  processing_time?: string | null;
+  turnaround?: string | null;
+  base_price: string | null; // DECIMAL stored as string (null for custom quote)
   discount_price?: string | null;
+  promo_price?: string | null;
+  pricing_notes?: string | null;
+  exclusions?: string[] | any | null;
+  related_service_ids?: number[] | any | null;
+  seo_title?: string | null;
+  meta_description?: string | null;
+  h1_heading?: string | null;
+  primary_cta_text?: string | null;
+  primary_cta_link?: string | null;
+  cta_type?: string | null;
   currency: string;
+  billing_period?: string;
+  pricing_mode?: string;
   is_active: boolean;
   is_featured?: boolean;
   display_order: number;
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date | null;
+}
+
+export interface ServiceFaqRecord {
+  id: number;
+  service_id: number;
+  question: string;
+  answer: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ServiceDocumentRecord {
+  id: number;
+  service_id: number;
+  document_name: string;
+  description: string | null;
+  is_required: boolean;
+  display_order: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ServiceProcessStepRecord {
+  id: number;
+  service_id: number;
+  step_number: number;
+  title: string;
+  description: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ServiceRelatedServiceRecord {
+  id: number;
+  service_id: number;
+  related_service_id: number;
+  display_order: number;
+  created_at: Date;
+  related_service_name?: string;
+  related_service_slug?: string;
+  related_service_region?: string;
+  related_service_base_price?: string | null;
+  related_service_currency?: string;
+}
+
+export interface PublicServiceDetailResponse {
+  id: number;
+  somNumber?: number | null;
+  name: string;
+  slug: string;
+  region: string;
+  category: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+  shortDescription: string | null;
+  description: string | null;
+  featured: boolean;
+  pricing: {
+    basePrice: string | number | null;
+    promoPrice: string | number | null;
+    effectivePrice: string | number | null;
+    currency: string;
+    billingPeriod: string;
+    pricingType: string;
+    notes: string | null;
+    exclusions: string[];
+  };
+  content: {
+    overview: string | null;
+    eligibility: string | null;
+    documents: Array<{ name: string; description?: string | null; isRequired?: boolean }> | string[];
+    deliverables: string[];
+    process: Array<{ step: number; title: string; description: string }>;
+    turnaround: string | null;
+  };
+  seo: {
+    title: string | null;
+    metaDescription: string | null;
+    h1: string | null;
+  };
+  faqs: Array<{ id: number; question: string; answer: string; displayOrder?: number }>;
+  relatedServices: Array<{
+    id: number;
+    name: string;
+    slug: string;
+    region: string;
+    basePrice: string | number | null;
+    currency: string;
+  }>;
+  cta: {
+    text: string;
+    link: string;
+    type: string;
+  };
 }
 
 export interface ServicePriceHistoryRecord {

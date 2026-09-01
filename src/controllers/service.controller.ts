@@ -11,7 +11,8 @@ export class ServiceController {
   static async listCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const activeOnly = req.query['all'] === 'true' ? false : true;
-      const categories = await ServiceService.listCategories(activeOnly);
+      const region = req.query['region'] as string | undefined;
+      const categories = await ServiceService.listCategories({ activeOnly, region });
       ResponseFormatter.success(res, categories);
     } catch (error) {
       next(error);
@@ -30,7 +31,8 @@ export class ServiceController {
 
   static async getCategoryBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const category = await ServiceService.getCategoryBySlug(req.params['slug']!);
+      const region = req.query['region'] as string | undefined;
+      const category = await ServiceService.getCategoryBySlug(req.params['slug']!, region);
       ResponseFormatter.success(res, category);
     } catch (error) {
       next(error);
@@ -113,9 +115,34 @@ export class ServiceController {
   static async listServices(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const categoryId = req.query['categoryId'] ? parseInt(req.query['categoryId'] as string, 10) : undefined;
+      const categorySlug = req.query['categorySlug'] as string | undefined;
+      const region = req.query['region'] as string | undefined;
+      const search = req.query['search'] as string | undefined;
+      const featured = req.query['featured'] !== undefined ? req.query['featured'] === 'true' : undefined;
       const activeOnly = req.query['all'] === 'true' ? false : true;
-      const services = await ServiceService.listServices({ categoryId, activeOnly });
-      ResponseFormatter.success(res, services);
+      const page = req.query['page'] ? parseInt(req.query['page'] as string, 10) : 1;
+      const limit = req.query['limit'] ? parseInt(req.query['limit'] as string, 10) : 50;
+
+      const result = await ServiceService.listServices({
+        categoryId,
+        categorySlug,
+        region,
+        search,
+        featured,
+        activeOnly,
+        page,
+        limit,
+      });
+
+      // Maintain direct array compatibility on data while providing meta
+      ResponseFormatter.success(res, result.services, undefined, 200, {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNextPage: result.page < result.totalPages,
+        hasPrevPage: result.page > 1,
+      });
     } catch (error) {
       next(error);
     }
@@ -125,6 +152,17 @@ export class ServiceController {
     try {
       const id = parseInt(req.params['id']!, 10);
       const service = await ServiceService.getServiceById(id);
+      ResponseFormatter.success(res, service);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getServiceByRegionAndSlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const region = req.params['region']!;
+      const slug = req.params['slug']!;
+      const service = await ServiceService.getServiceByRegionAndSlug(region, slug);
       ResponseFormatter.success(res, service);
     } catch (error) {
       next(error);

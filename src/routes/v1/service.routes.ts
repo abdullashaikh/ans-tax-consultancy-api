@@ -22,6 +22,7 @@ const router = Router();
 router.get('/categories', ServiceController.listCategories);
 router.get('/categories/:slug', ServiceController.getCategoryBySlug);
 router.get('/', ServiceController.listServices);
+router.get('/:region(india|uae)/:slug', ServiceController.getServiceByRegionAndSlug);
 router.get('/:slug', ServiceController.getServiceBySlug);
 
 // ============================================================================
