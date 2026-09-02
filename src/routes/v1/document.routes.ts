@@ -3,7 +3,7 @@ import { DocumentController } from '../../controllers/document.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/authorization.middleware';
 import { validateRequest } from '../../middleware/validation.middleware';
-import { uploadMiddleware } from '../../middleware/upload.middleware';
+import { uploadMiddleware, scanUploadedFile } from '../../middleware/upload.middleware';
 import {
   getUploadUrlSchema,
   registerDocumentSchema,
@@ -34,11 +34,12 @@ router.post(
   DocumentController.getUploadUrl
 );
 
-// 2. Direct File Upload (Multipart Form Data -> Backend Streams to AWS S3)
+// 2. Direct File Upload (Multipart Form Data -> Security Magic Byte Scanner -> Streams to Encrypted S3)
 router.post(
   '/upload',
   uploadRateLimiter,
   uploadMiddleware.single('file'),
+  scanUploadedFile,
   DocumentController.uploadDirect
 );
 
