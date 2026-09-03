@@ -2,7 +2,11 @@ import { z } from 'zod';
 
 export const createApplicationSchema = {
   body: z.object({
-    serviceId: z.number().int().positive('Service ID is required'),
+    serviceId: z.preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const parsed = Number(val);
+      return isNaN(parsed) ? val : parsed;
+    }, z.number().int().positive('Service ID is required')),
     title: z.string().max(255).optional(),
     description: z.string().optional(),
     notes: z.string().optional(),
@@ -41,7 +45,11 @@ export const assignConsultantSchema = {
     id: z.string().uuid('Invalid application UUID'),
   }),
   body: z.object({
-    consultantId: z.number().int().positive('Consultant user ID is required'),
+    consultantId: z.preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const parsed = Number(val);
+      return isNaN(parsed) ? val : parsed;
+    }, z.number().int().positive('Consultant user ID is required')),
     notes: z.string().optional(),
   }),
 };
@@ -51,8 +59,16 @@ export const updateApplicationAmountsSchema = {
     id: z.string().uuid('Invalid application UUID'),
   }),
   body: z.object({
-    quotedAmount: z.number().nonnegative().optional(),
-    finalAmount: z.number().nonnegative().optional(),
+    quotedAmount: z.preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const parsed = Number(val);
+      return isNaN(parsed) ? val : parsed;
+    }, z.number().nonnegative().optional()),
+    finalAmount: z.preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const parsed = Number(val);
+      return isNaN(parsed) ? val : parsed;
+    }, z.number().nonnegative().optional()),
     currency: z.string().length(3).default('INR'),
   }),
 };

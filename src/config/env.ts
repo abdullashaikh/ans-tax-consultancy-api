@@ -82,9 +82,10 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 
-  // Email & Resend OTP Provider
+  // Email & Resend Provider
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('noreply@anstaxconsultancy.com'),
+  LEAD_NOTIFICATION_EMAIL: z.string().default('info@anstaxconsultancy.com'),
 
   // OTP Configuration & Security
   OTP_EXPIRATION_SECONDS: z.string().transform((val) => parseInt(val, 10)).default('300'),

@@ -58,6 +58,7 @@ export class ServiceRepository {
     const [rows] = await pool.query<RowDataPacket[]>(sql, values);
     return rows.map((r) => ({
       ...r,
+      id: Number(r['id']),
       is_active: Boolean(r['is_active']),
       service_count: Number(r['service_count'] || 0),
     })) as Array<ServiceCategoryRecord & { service_count: number }>;
@@ -70,7 +71,7 @@ export class ServiceRepository {
     );
     if (!rows || rows.length === 0) return null;
     const r = rows[0]!;
-    return { ...r, is_active: Boolean(r['is_active']) } as ServiceCategoryRecord;
+    return { ...r, id: Number(r['id']), is_active: Boolean(r['is_active']) } as ServiceCategoryRecord;
   }
 
   static async findCategoryBySlug(slug: string, region?: string): Promise<ServiceCategoryRecord | null> {
@@ -86,7 +87,7 @@ export class ServiceRepository {
     const [rows] = await pool.query<RowDataPacket[]>(sql, values);
     if (!rows || rows.length === 0) return null;
     const r = rows[0]!;
-    return { ...r, is_active: Boolean(r['is_active']) } as ServiceCategoryRecord;
+    return { ...r, id: Number(r['id']), is_active: Boolean(r['is_active']) } as ServiceCategoryRecord;
   }
 
   static async countServicesByCategoryId(categoryId: number, activeOnly: boolean = true): Promise<number> {
@@ -175,9 +176,9 @@ export class ServiceRepository {
 
   private static mapServiceRow(r: RowDataPacket): ServiceRecord {
     return {
-      id: r['id'],
+      id: Number(r['id']),
       som_number: r['som_number'] !== undefined && r['som_number'] !== null ? Number(r['som_number']) : null,
-      category_id: r['category_id'],
+      category_id: Number(r['category_id']),
       name: r['name'],
       slug: r['slug'],
       region: r['region'] || 'INDIA',

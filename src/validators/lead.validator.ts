@@ -5,7 +5,11 @@ export const createLeadSchema = {
     name: z.string().min(1, 'Name is required').max(200),
     email: z.string().email('Invalid email address').max(255).optional(),
     phone: z.string().regex(/^[0-9+\-\s()]{7,20}$/, 'Invalid phone number format').optional(),
-    serviceId: z.number().int().positive().optional(),
+    serviceId: z.preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const parsed = Number(val);
+      return isNaN(parsed) ? val : parsed;
+    }, z.number().int().positive().optional()),
     serviceInterest: z.string().max(200).optional(),
     businessType: z.string().max(100).optional(),
     city: z.string().max(100).optional(),

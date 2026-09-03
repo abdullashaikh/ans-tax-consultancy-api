@@ -5,6 +5,8 @@ import { ApiError } from '../utils/apiError';
 import { ErrorCodes } from '../constants/errorCodes';
 import { LeadStatus } from '../types/models';
 import { AuditService } from '../middleware/audit.middleware';
+import { EmailService } from './email.service';
+import { logger } from '../config/logger';
 
 export class LeadService {
   static async createLead(params: {
@@ -61,7 +63,30 @@ export class LeadService {
       userAgent: params.userAgent,
     });
 
-    return LeadRepository.findByPublicId(publicId);
+    const createdLead = await LeadRepository.findByPublicId(publicId);
+
+    // Dispatch email notification to firm partners/admin (asynchronous non-blocking)
+    if (createdLead) {
+      EmailService.sendConsultationNotification({
+        leadId,
+        publicId,
+        name: createdLead.name,
+        email: createdLead.email,
+        phone: createdLead.phone,
+        serviceId: params.serviceId,
+        serviceName: (createdLead as any).service_name,
+        serviceInterest: params.serviceInterest,
+        businessType: createdLead.business_type,
+        city: createdLead.city,
+        message: createdLead.message,
+        source: createdLead.source,
+        createdAt: createdLead.created_at,
+      }).catch((err) => {
+        logger.error('[LeadService] Consultation notification email dispatch failed:', err);
+      });
+    }
+
+    return createdLead;
   }
 
   static async updateStatus(
